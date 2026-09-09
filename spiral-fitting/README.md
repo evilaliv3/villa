@@ -121,6 +121,34 @@ This also builds Spiral's native helpers as `vc_spiral.spiral_sampling`,
 `vc_spiral.surface_index`. OpenMP is used when the toolchain provides it; the
 same modules build with serial kernels when it does not.
 
+#### Building the native helpers on their own, without CUDA
+
+The four `vc_spiral` modules do not need a GPU, a CUDA toolkit, or a build of
+VC3D. `spiral-fitting/cpp/` contains no `.cu` file and its `CMakeLists.txt`
+names no CUDA language: the modules are nanobind extensions over plain C++23,
+with OpenMP when the toolchain offers it. Only the *fitter* needs CUDA; the
+helpers do not.
+
+That matters for anyone consuming Spiral's outputs — reading a track store,
+resolving point-to-patch links through `SurfacePatchIndex`, or computing final
+metrics through `PatchSatisfactionAtlas` — on a machine that has no GPU, and
+for anyone who assumed these modules arrive only with a full VC3D build.
+
+Needs cmake ≥ 3.22, a C++23 compiler, and `nanobind` importable by the Python
+you point it at:
+
+```sh
+cd spiral-fitting/cpp
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DPython_EXECUTABLE="$(which python)"
+cmake --build build -j
+PYTHONPATH=build python -c "import vc_spiral.surface_index"
+```
+
+The four `.so` files land in `build/vc_spiral/`. Measured on Ubuntu 26.04,
+GCC 15, nanobind 3.0.1, Python 3.14: 2 s to configure and 58 s to build with
+four jobs on a busy 16-core machine, no GPU present.
+
 or with conda/pip, install `torch` for your CUDA version and then
 `pip install -e .` from `spiral-fitting/`.
 
