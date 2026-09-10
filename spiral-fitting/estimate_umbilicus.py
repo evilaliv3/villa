@@ -1,11 +1,16 @@
-"""Estimate an umbilicus.json (scroll core polyline) for a scroll without a published one, from the organizers' L2 surface
+"""Estimate an umbilicus.json (scroll core polyline) for a scroll without a published one, from a published surface
 prediction: at N heights, take the largest connected component of the sheet mask, fill holes, and use the point of maximum
-distance-to-boundary (the innermost point of the winding pack) as the core; write control points {x,y,z,score} at level 0.
-Usage: estimate_umbilicus.py <scroll> <surf_zarr_rel_path/> <out.json> [n_z=12]"""
+distance-to-boundary as the core, which is the centre of the widest lobe of the section and coincides with the winding
+centre when the section is round. Control points {x,y,z,score} are written in the coordinates of level 0 OF THE STORE
+you point at, and the downsample factor comes from that store's own multiscales metadata: an already-downsampled
+prediction (an L2 store, say) therefore yields L2 coordinates, not scroll level 0. The store's declared voxel size is
+copied into the output metadata so that this is visible rather than silent.
+Usage: estimate_umbilicus.py <scroll> <surf_zarr_rel_path/> <out.json> [n_z=12] [level=3]"""
 import sys, json, urllib.request, numpy as np, numcodecs
 from scipy import ndimage as ndi
 B = "https://vesuvius-challenge-open-data.s3.amazonaws.com/"
 scroll, rel, out = sys.argv[1:4]; n_z = int(sys.argv[4]) if len(sys.argv) > 4 else 12
+level = sys.argv[5] if len(sys.argv) > 5 else '3'
 url = B + rel
 def read_slice(level, z):
     meta = json.loads(urllib.request.urlopen(url + f'{level}/.zarray', timeout=60).read().decode())
@@ -19,7 +24,26 @@ def read_slice(level, z):
             y1, x1 = min(shape[1], (iy + 1) * cy), min(shape[2], (ix + 1) * cx)
             outp[iy * cy:y1, ix * cx:x1] = arr[z % cz, :y1 - iy * cy, :x1 - ix * cx]
     return outp, shape
-level = '3'; f = 8
+def store_metadata():
+    """Downsample factor of the chosen level, and the store's own voxel size, from its metadata.
+    Reading the factor instead of assuming it is the rule the spiral-fitting README already states
+    for lasagna_scale, and it is the difference between coordinates that are right and coordinates
+    that are wrong by a power of two with no error raised."""
+    f, vox = 2 ** int(level), None
+    try:
+        ds = json.loads(urllib.request.urlopen(url + '.zattrs', timeout=60).read().decode())['multiscales'][0]['datasets']
+        f = int(round(next(d['coordinateTransformations'][0]['scale'][-1] for d in ds if str(d['path']) == level)))
+    except Exception as e:
+        print(f'.zattrs multiscales unusable ({e}), falling back to 2**level = {f}', flush=True)
+    try:
+        vox = json.loads(urllib.request.urlopen(url + 'meta.json', timeout=60).read().decode()).get('voxelsize')
+    except Exception:
+        pass
+    return f, vox
+
+
+f, store_voxelsize = store_metadata()
+print(f'level {level}, scale to this store\'s level 0 = {f}, store voxel size = {store_voxelsize} um', flush=True)
 meta = json.loads(urllib.request.urlopen(url + f'{level}/.zarray', timeout=60).read().decode()); Z = meta['shape'][0]
 pts = []
 for frac in np.linspace(0.08, 0.92, n_z):
@@ -32,5 +56,6 @@ for frac in np.linspace(0.08, 0.92, n_z):
     cy, cx = np.unravel_index(int(np.argmax(dist)), dist.shape)
     pts.append({'x': int(cx * f + f // 2), 'y': int(cy * f + f // 2), 'z': int(z * f), 'score': 60})
     print(f'z={z*f}: core at x={cx*f} y={cy*f} (depth {dist.max()*f*9.4/1000:.1f} mm)', flush=True)
-json.dump({'control_points': pts, 'metadata': {'source': 'estimate_umbilicus.py (max distance-to-boundary of sheet mask, L3)', 'scroll': scroll}}, open(out, 'w'), indent=1)
+json.dump({'control_points': pts, 'metadata': {'source': 'estimate_umbilicus.py (max distance-to-boundary of sheet mask)', 'scroll': scroll,
+           'store': rel, 'level': level, 'scale_to_store_level0': f, 'store_voxelsize_um': store_voxelsize}}, open(out, 'w'), indent=1)
 print('wrote', out, len(pts), 'points')
