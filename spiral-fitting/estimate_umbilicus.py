@@ -5,13 +5,15 @@ the core; write control points {x,y,z,score} at level 0. The plain argmax of the
 wide, nearly flat plateau, so it jumps between lobes from slice to slice; measured against the published umbilici of
 PHerc0125, PHerc0211 and PHerc0826 the point of that plateau nearest the centroid is closer on all three. Pass
 core=argmax for the previous behaviour.
-Usage: estimate_umbilicus.py <scroll> <surf_zarr_rel_path/> <out.json> [n_z=12] [core=plateau|argmax]"""
+Usage: estimate_umbilicus.py <scroll> <surf_zarr_rel_path/> <out.json> [n_z=12] [core=plateau|argmax] [level=3]"""
 import sys, json, urllib.request, urllib.error, numpy as np, numcodecs
 from scipy import ndimage as ndi
 B = "https://vesuvius-challenge-open-data.s3.amazonaws.com/"
 scroll, rel, out = sys.argv[1:4]; n_z = int(sys.argv[4]) if len(sys.argv) > 4 else 12
 core = sys.argv[5] if len(sys.argv) > 5 else 'plateau'
+level = sys.argv[6] if len(sys.argv) > 6 else '3'
 if core.startswith('core='): core = core.split('=', 1)[1]      # the usage line invites the prefixed form
+if level.startswith('level='): level = level.split('=', 1)[1]
 if core not in ('plateau', 'argmax'): sys.exit(f"core must be 'plateau' or 'argmax', got {core!r}")
 url = B + rel
 def read_slice(level, z):
@@ -28,7 +30,7 @@ def read_slice(level, z):
             y1, x1 = min(shape[1], (iy + 1) * cy), min(shape[2], (ix + 1) * cx)
             outp[iy * cy:y1, ix * cx:x1] = arr[z % cz, :y1 - iy * cy, :x1 - ix * cx]
     return outp, shape
-level = '3'; f = 8
+f = 2 ** int(level)
 meta = json.loads(urllib.request.urlopen(url + f'{level}/.zarray', timeout=60).read().decode()); Z = meta['shape'][0]
 pts = []
 for frac in np.linspace(0.08, 0.92, n_z):
@@ -45,5 +47,5 @@ for frac in np.linspace(0.08, 0.92, n_z):
     pts.append({'x': int(cx * f + f // 2), 'y': int(cy * f + f // 2), 'z': int(z * f), 'score': 60})
     print(f'z={z*f}: core at x={cx*f} y={cy*f} (depth {dist[cy, cx]*f*9.4/1000:.1f} mm)', flush=True)
 SOURCE = {'argmax': 'max distance-to-boundary', 'plateau': 'distance plateau nearest the centroid'}   # argmax keeps the old literal, so core=argmax reproduces existing files byte for byte
-json.dump({'control_points': pts, 'metadata': {'source': f'estimate_umbilicus.py ({SOURCE[core]} of sheet mask, L3)', 'scroll': scroll}}, open(out, 'w'), indent=1)
+json.dump({'control_points': pts, 'metadata': {'source': f'estimate_umbilicus.py ({SOURCE[core]} of sheet mask, L{level})', 'scroll': scroll}}, open(out, 'w'), indent=1)
 print('wrote', out, len(pts), 'points')
