@@ -58,7 +58,7 @@ class Confusion:
             targets = targets[valid_mask]
         if targets.numel() == 0:
             return self.zero_counts(device=logits.device)
-        predictions = torch.sigmoid(logits).to(torch.float32) >= self.threshold
+        predictions = torch.sigmoid(logits.to(torch.float32)) >= self.threshold
         targets = targets.to(torch.float32) >= 0.5
         return ConfusionCounts(
             tp=(predictions & targets).sum(dtype=torch.int64),
