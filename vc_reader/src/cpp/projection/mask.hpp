@@ -35,6 +35,8 @@ template<class Mark>VCR_MASK_HD inline void maskPatch(const MaskBand& g,const in
         auto v=geometry::vector(xyz+3*k+6)-geometry::vector(xyz+3*k);
         du=fmaxf(du,sqrtf(geometry::dot(u,u)));dv=fmaxf(dv,sqrtf(geometry::dot(v,v)));
     }
+    // Beyond kSubdivisions * 0.5 voxels the samples cannot be half a voxel apart: a tear of the flat grid, not a sheet.
+    if(du>kSubdivisions*.5f||dv>kSubdivisions*.5f)return;
     const int nu=subdivisions(du),nv=subdivisions(dv);
     const auto half=bandHalf(g.halfThickness,1.f);
     grid::GridView view;view.xyz=xyz;view.normals=normals;view.valid=valid;
