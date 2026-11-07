@@ -455,6 +455,7 @@ def test_real_training_entry_preserves_prepare_sync_and_ema_numerics(
     )
     assert checkpoint["ema_optimizer_step"] == 1
     torch.testing.assert_close(checkpoint["model"]["value"], torch.tensor(0.8))
-    torch.testing.assert_close(checkpoint["ema_model"]["value"], torch.tensor(0.9))
+    # EMA started from the step 1 weights (0.8) at start_step 1, no later update.
+    torch.testing.assert_close(checkpoint["ema_model"]["value"], torch.tensor(0.8))
     assert checkpoint["model"]["counter"].item() == 2
     assert checkpoint["ema_model"]["counter"].item() == 2

@@ -891,16 +891,19 @@ def _run_training(request: TrainingRequest) -> int:
                     )
                 ):
                     ema_state = ema_model.state_dict()
+                    # The EMA still holds the weights copied at construction;
+                    # start the average from the weights of start_step.
+                    first_update = optimizer_step == ema.start_step
                     for name, model_value in unwrapped_model.state_dict().items():
                         ema_value = ema_state[name]
                         model_value = model_value.detach()
-                        if torch.is_floating_point(ema_value):
+                        if first_update or not torch.is_floating_point(ema_value):
+                            ema_value.copy_(model_value)
+                        elif torch.is_floating_point(ema_value):
                             ema_value.lerp_(
                                 model_value.to(dtype=ema_value.dtype),
                                 1.0 - ema.decay,
                             )
-                        else:
-                            ema_value.copy_(model_value)
 
         if config.benchmark.enabled:
             if step >= config.benchmark.warmup_steps:
