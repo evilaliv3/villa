@@ -679,11 +679,9 @@ static inline cv::Vec2f mul(const cv::Vec2f &a, const cv::Vec2f &b)
 
 static bool pointSearchAxisContains(float value, int size)
 {
-    // Narrow ribbons have no interior margin, but still contain surface patches.
-    if (size <= 3)
-        return size >= 2 && value >= 0 && value < size - 1;
-    const int rounded = cvRound(value);
-    return rounded >= 1 && rounded < size - 1;
+    // Every position the interpolator covers, border cells included: pointsAt
+    // answers up to and including the last vertex (value == size - 1).
+    return size >= 2 && value >= 0 && value <= size - 1;
 }
 
 static float pointSearchAxisSeed(int size)
