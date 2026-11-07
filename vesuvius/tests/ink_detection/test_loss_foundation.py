@@ -130,6 +130,27 @@ def test_combined_smoothed_bce_and_dice_excludes_ignored_second_pixel():
     assert logits_BCHW.grad[0, 0, 0, 1].item() == 0.0
 
 
+def test_dice_label_smoothing_acts_on_region_targets():
+    def dice_only(label_smoothing):
+        return LabelSmoothedDCAndBCELoss(
+            bce_kwargs={},
+            soft_dice_kwargs={"label_smoothing": label_smoothing},
+            weight_dice=1.0,
+            weight_ce=0.0,
+            use_ignore_label=True,
+        )
+
+    logits_BCHW = torch.tensor([[[[math.log(3.0)]]]])
+    target_with_ignore_BCHW = torch.tensor([[[[1.0]], [[0.0]]]])
+
+    plain = dice_only(0.0)(logits_BCHW, target_with_ignore_BCHW)
+    smoothed = dice_only(0.1)(logits_BCHW, target_with_ignore_BCHW)
+
+    # p = 0.75; dice = (2 p t + 1) / (t + p + 1) with t = 1 and t = 0.95
+    torch.testing.assert_close(plain, torch.tensor(-2.5 / 2.75), rtol=1e-6, atol=1e-7)
+    torch.testing.assert_close(smoothed, torch.tensor(-2.425 / 2.7), rtol=1e-6, atol=1e-7)
+
+
 class _LiteralLoss(nn.Module):
     def __init__(self, value: float, auxiliary: float | None = None) -> None:
         super().__init__()

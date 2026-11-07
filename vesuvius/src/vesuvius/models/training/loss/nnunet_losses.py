@@ -178,6 +178,10 @@ class MemoryEfficientSoftDiceLoss(nn.Module):
             if x.shape == y.shape:
                 # if this is the case then gt is probably already a one hot encoding
                 y_onehot = y
+                if self.label_smoothing > 0:
+                    # Region targets are independent channels: smooth each one
+                    # towards 0.5, as the BCE term of DC_and_BCE_loss does.
+                    y_onehot = y.float() * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
             else:
                 num_classes = x.shape[1]
                 # Clamp y to valid indices to prevent CUDA scatter_ crash
