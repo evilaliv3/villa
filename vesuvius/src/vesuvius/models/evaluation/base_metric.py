@@ -4,6 +4,12 @@ import torch
 import numpy as np
 
 
+def binarize_scores(scores: np.ndarray) -> np.ndarray:
+    """Class ids from a single channel score volume: logits are cut at 0, probabilities at 0.5."""
+    cutoff = 0.0 if (scores.min() < 0.0 or scores.max() > 1.0) else 0.5
+    return (scores > cutoff).astype(np.int64)
+
+
 class BaseMetric(ABC):
     def __init__(self, name: str):
         self.name = name
