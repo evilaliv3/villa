@@ -288,8 +288,10 @@ class ShellPolarMap:
         if confidence.max() > 0:
             confidence = confidence / confidence.max()
 
-        radius_with_wrap = np.concatenate([filled, filled[:, :1]], axis=1).astype(np.float32)
-        confidence_with_wrap = np.concatenate([confidence, confidence[:, :1]], axis=1).astype(np.float32)
+        # A wrap column on each side: bin k holds the mean over theta in [k, k + 1) bins, so lookup
+        # addresses it at its centre (column k + 1 of the padded table).
+        radius_with_wrap = np.concatenate([filled[:, -1:], filled, filled[:, :1]], axis=1).astype(np.float32)
+        confidence_with_wrap = np.concatenate([confidence[:, -1:], confidence, confidence[:, :1]], axis=1).astype(np.float32)
 
         self.lookup_table = torch.from_numpy(
             np.stack([radius_with_wrap, confidence_with_wrap], axis=0)
@@ -324,7 +326,7 @@ class ShellPolarMap:
         radius = torch.linalg.norm(rel_yx, dim=-1)
 
         z_normalised = (scan_zyx[..., 0] - self.z_min) / (self.z_max - self.z_min) * 2 - 1
-        theta_normalised = theta / (2 * torch.pi) * 2 - 1
+        theta_normalised = (theta / (2 * torch.pi) * self.num_theta_bins + 0.5) / (self.num_theta_bins + 1) * 2 - 1
         grid = torch.stack([theta_normalised, z_normalised], dim=-1).view(1, -1, 1, 2)
         sampled = grid_sample_border(
             self.lookup_table[None],
