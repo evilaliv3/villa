@@ -750,6 +750,9 @@ class ZarrDataset(Dataset):
 
         y_positions = list(range(0, max(1, height - ph + 1), sh))
         x_positions = list(range(0, max(1, width - pw + 1), sw))
+        for positions, dim, p in ((y_positions, height, ph), (x_positions, width, pw)):
+            if dim > p and positions[-1] + p < dim:
+                positions.append(dim - p)  # the grid leaves a tail of (dim - p) % stride voxels
 
         return [(y, x) for y in y_positions for x in x_positions]
 
@@ -766,6 +769,9 @@ class ZarrDataset(Dataset):
         z_positions = list(range(0, max(1, depth - pd + 1), sd))
         y_positions = list(range(0, max(1, height - ph + 1), sh))
         x_positions = list(range(0, max(1, width - pw + 1), sw))
+        for positions, dim, p in ((z_positions, depth, pd), (y_positions, height, ph), (x_positions, width, pw)):
+            if dim > p and positions[-1] + p < dim:
+                positions.append(dim - p)  # the grid leaves a tail of (dim - p) % stride voxels
 
         return [(z, y, x) for z in z_positions for y in y_positions for x in x_positions]
 
