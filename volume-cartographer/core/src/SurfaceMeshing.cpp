@@ -179,12 +179,6 @@ long long edgeFn(long long ax, long long ay,
     return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
 }
 
-// Top-left edge predicate for the fill rule. Antisymmetric under edge
-// reversal, so the two triangles sharing an edge make opposite choices and
-// each on-edge pixel is claimed exactly once.
-bool isTopLeft(long long dx, long long dy) {
-    return dy < 0 || (dy == 0 && dx < 0);
-}
 }
 
 void UvGridRasterizer::setMesh(std::vector<cv::Vec3f> vertices_, std::vector<cv::Vec2f> uvs_, std::vector<UvFace> faces_)
@@ -465,12 +459,11 @@ void UvGridRasterizer::rasterizeTriangle(cv::Mat_<cv::Vec3f>& points, const UvFa
         area2 = -area2;
     }
 
-    // Top-left bias per edge: a pixel exactly on an edge (w == 0) is
-    // included only when that edge is top-left. Folding the bias into the
-    // comparison turns the rule into a single (w + bias) >= 0 test.
-    const long long bias0 = isTopLeft(X[2] - X[1], Y[2] - Y[1]) ? 0 : -1; // edge B->C
-    const long long bias1 = isTopLeft(X[0] - X[2], Y[0] - Y[2]) ? 0 : -1; // edge C->A
-    const long long bias2 = isTopLeft(X[1] - X[0], Y[1] - Y[0]) ? 0 : -1; // edge A->B
+    // Every edge is inclusive: a pixel exactly on a shared edge is claimed
+    // once by "first triangle wins" below, and both triangles interpolate
+    // the same position there; a top-left rule would leave the pixels on two
+    // of the mesh's boundary edges (a whole grid row and column of a grid
+    // aligned mesh, and the rim of every hole) uncovered.
 
     // Bounding box on the pixel grid.
     const int min_x = std::max(0, static_cast<int>(std::floor(std::min({gx[0], gx[1], gx[2]}))));
@@ -486,7 +479,7 @@ void UvGridRasterizer::rasterizeTriangle(cv::Mat_<cv::Vec3f>& points, const UvFa
             const long long w0 = edgeFn(X[1], Y[1], X[2], Y[2], Px, Py); // weight of vertex 0
             const long long w1 = edgeFn(X[2], Y[2], X[0], Y[0], Px, Py); // weight of vertex 1
             const long long w2 = edgeFn(X[0], Y[0], X[1], Y[1], Px, Py); // weight of vertex 2
-            if ((w0 + bias0) < 0 || (w1 + bias1) < 0 || (w2 + bias2) < 0) {
+            if (w0 < 0 || w1 < 0 || w2 < 0) {
                 continue;
             }
             if (vc::geometry::validSurfacePoint(points(y, x))) {

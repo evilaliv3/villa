@@ -198,7 +198,7 @@ TEST_CASE("vc_obj2tifxyz and vc_obj2tifxyz_legacy rasterize an OBJ")
     run(tool("VC_OBJ2TIFXYZ_BIN") + " " + quoted(dir.path / "sheet.obj") + " " + quoted(dir.path / "modern") + " 4",
         dir.path / "modern.log");
     const auto modern = load_quad_from_tifxyz(dir.path / "modern");
-    checkStats(stats(*modern->rawPointsPtr(), validPoint), GridStats{99, 126, 11136, {727999.00440979004, 805493.74280548096, 455152.21654510498}, {1124922.4311063644, 1261103.0851978033, 700345.92459452897}}, 3);
+    checkStats(stats(*modern->rawPointsPtr(), validPoint), GridStats{99, 126, 11260, {736059.79671478271, 812933.74254989624, 460191.32173156738}, {1133525.3410870428, 1269008.3518901861, 705699.9776562514}}, 3);
 
     run(tool("VC_OBJ2TIFXYZ_LEGACY_BIN") + " " + quoted(dir.path / "sheet.obj") + " " + quoted(dir.path / "legacy") + " 1.5",
         dir.path / "legacy.log");
