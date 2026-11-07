@@ -472,9 +472,13 @@ class FlatPatchReader:
                 f"output_depth={self.output_depth} is smaller than selected "
                 f"depth={self.layer_indices.size}"
             )
+        # Training reads a shallow volume as z0 = depth // 2 - patch_depth // 2
+        # and zero-pads outside it (patch_finding_default.surface_patch_bbox,
+        # volume_io.read_bbox_with_padding), so the source centre plane lands at
+        # output index patch_depth // 2. Place it there here as well.
         self.output_depth_start = (
-            self.output_depth - self.layer_indices.size
-        ) // 2
+            self.output_depth // 2 - self.layer_indices.size // 2
+        )
         self._array = None
         self._read_mode = "fancy"
         self._z_start = int(self.layer_indices[0])

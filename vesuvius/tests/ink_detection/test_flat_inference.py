@@ -191,6 +191,28 @@ def test_flat_axes_layers_reverse_and_short_depth_padding(tmp_path):
     ).tolist() == [5, 4, 3, 2, 1, 0]
 
 
+def test_short_depth_padding_places_the_centre_plane_as_training(tmp_path):
+    path = tmp_path / "three-planes.zarr"
+    values_ZYX = np.arange(1, 1 + 3 * 2 * 2, dtype=np.uint8).reshape(3, 2, 2)
+    array = ZarrWriter.create(path, shape=values_ZYX.shape, chunks=values_ZYX.shape, dtype="u1")
+    array[:] = values_ZYX
+    reader = FlatPatchReader(
+        input_path=path,
+        resolution="0",
+        depth_axis_first=True,
+        height=2,
+        width=2,
+        layer_indices=np.arange(3),
+        output_depth=4,
+        preprocessing="divide_255",
+    )
+    patch_HWZ = reader.read(0, 0, 2, 2)
+    # Training: z0 = 3 // 2 - 4 // 2 = -1, so source plane k sits at output k + 1
+    # and the centre plane 1 at 4 // 2 = 2.
+    assert np.count_nonzero(patch_HWZ[..., 0]) == 0
+    np.testing.assert_array_equal(patch_HWZ[..., 1:4], np.moveaxis(values_ZYX, 0, -1))
+
+
 def test_discarded_layer_window_warns_and_falls_back(caplog):
     default = select_layer_indices(
         31,
