@@ -1053,7 +1053,10 @@ def iter_lasagna_losses(slice_to_spiral_transform, dr_per_winding, lasagna_volum
     # Look up the precomputed scroll-space targets at the midpoint of the displacement (the
     # geometric centre of the one-winding step in scroll space).
     scroll_mid = ((scroll_inner + scroll_outer) / 2).detach()
-    sample_zyx = (scroll_mid / lasagna_scale).round().long()
+    # Lasagna voxel i covers current-grid voxels [i s, (i + 1) s) (lasagna_data.py sizes the store as
+    # ceil(shape / s) and the z ROI as floor / ceil), so a coordinate c (voxel centre at c) belongs to
+    # floor((c + 0.5) / s), not round(c / s), which is off by (s - 1) / 2 voxels.
+    sample_zyx = ((scroll_mid + 0.5) / lasagna_scale).floor().long()
     zi = sample_zyx[:, 0] - z_origin
     yi = sample_zyx[:, 1] - y_origin
     xi = sample_zyx[:, 2] - x_origin
@@ -1068,7 +1071,7 @@ def iter_lasagna_losses(slice_to_spiral_transform, dr_per_winding, lasagna_volum
         num_steps = int(cfg['dense_spacing_integration_steps'])
         step_frac = (torch.arange(num_steps, device=device).float() + 0.5) / num_steps
         integration_zyx = scroll_inner[:, None, :] + step_frac[None, :, None] * scroll_displacement[:, None, :]
-        int_idx = (integration_zyx.detach() / lasagna_scale).round().long()
+        int_idx = ((integration_zyx.detach() + 0.5) / lasagna_scale).floor().long()
         izi = int_idx[..., 0] - z_origin
         iyi = int_idx[..., 1] - y_origin
         ixi = int_idx[..., 2] - x_origin
