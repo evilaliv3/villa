@@ -598,7 +598,7 @@ def project_flat_patch(
     valid &= np.isfinite(positions_zyx).all(axis=-1)
     if not np.any(valid):
         return output
-    mapped = np.asarray(positions_zyx)[valid].astype(np.int64, copy=False)
+    mapped = np.floor(np.asarray(positions_zyx)[valid] + 0.5).astype(np.int64, copy=False)
     local = mapped - np.asarray((z0, y0, x0), dtype=np.int64)
     within = (local >= 0).all(axis=1) & (local < np.asarray(output.shape)).all(axis=1)
     if not np.any(within):
@@ -856,7 +856,7 @@ def filter_support_bands(
     finite = np.isfinite(points[:, 0]).all(axis=-1)
     if not np.any(finite):
         return support_bbox, valid
-    local = points[finite, 0].astype(np.int64, copy=False)
+    local = np.floor(points[finite, 0] + 0.5).astype(np.int64, copy=False)
     local = local - np.asarray(crop_bbox_zyx[:3], dtype=np.int64)
     shape = np.asarray(components.shape, dtype=np.int64)
     within = (local >= 0).all(axis=1) & (local < shape).all(axis=1)
