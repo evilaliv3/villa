@@ -90,13 +90,15 @@ public:
         storage_.emplace_back(std::make_shared<LineSegList>(points));
  
         std::unordered_set<int> relevant_buckets;
-        for (const auto& p : points) {
-            cv::Point grid_pos = (p - bounds_.tl()) / cell_size_;
-            if (grid_pos.x >= 0 && grid_pos.x < grid_size_.width &&
-                grid_pos.y >= 0 && grid_pos.y < grid_size_.height) {
-                int index = grid_pos.y * grid_size_.width + grid_pos.x;
-                relevant_buckets.insert(index);
-            }
+        for (size_t i = 0; i < points.size(); ++i) {
+            // Every bucket a segment can touch: the bucket box of its end points. A path
+            // indexed by its vertices alone is missed by a query over a bucket that a
+            // segment crosses without a vertex in it (segments are at most 127 px long).
+            const cv::Point a = (points[i ? i - 1 : i] - bounds_.tl()) / cell_size_;
+            const cv::Point b = (points[i] - bounds_.tl()) / cell_size_;
+            for (int y = std::max(0, std::min(a.y, b.y)); y <= std::min(grid_size_.height - 1, std::max(a.y, b.y)); ++y)
+                for (int x = std::max(0, std::min(a.x, b.x)); x <= std::min(grid_size_.width - 1, std::max(a.x, b.x)); ++x)
+                    relevant_buckets.insert(y * grid_size_.width + x);
         }
 
         for (int index : relevant_buckets) {
